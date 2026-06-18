@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"olx-pp-cli/internal/backend"
 	"olx-pp-cli/internal/cliutil"
 )
 
@@ -35,8 +36,6 @@ func newCrawlListarCategoriasCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 
-			path := "/crawl"
-			params := map[string]string{}
 			var body map[string]any
 			if stdinBody {
 				stdinData, err := io.ReadAll(os.Stdin)
@@ -61,9 +60,23 @@ func newCrawlListarCategoriasCmd(flags *rootFlags) *cobra.Command {
 					body["urls"] = []string{"https://www.olx.com.br/brasil"}
 				}
 			}
-			data, statusCode, err := c.PostWithParams(cmd.Context(), path, params, body)
-			if err != nil {
-				return classifyAPIError(err, flags)
+			// Extrair URL do body e chamar o backend configurado
+			var olxTargetURL string
+			if urls, ok := body["urls"].([]string); ok && len(urls) > 0 {
+				olxTargetURL = urls[0]
+			}
+
+			bt := flags.loadBackend()
+			var data json.RawMessage
+			var statusCode int
+			if flags.dryRun {
+				data, statusCode = json.RawMessage("{}"), 0
+			} else {
+				data, err = backend.Scrape(cmd.Context(), c.HTTPClient, c.BaseURL, bt, olxTargetURL, bodyPriority)
+				if err != nil {
+					return classifyAPIError(err, flags)
+				}
+				statusCode = 200
 			}
 			// Inspect the mutate response body for a partial-failure-shaped
 			// field (e.g. Google Ads `partialFailureError`). Several Google
@@ -124,7 +137,7 @@ func newCrawlListarCategoriasCmd(flags *rootFlags) *cobra.Command {
 				envelope := map[string]any{
 					"action":   "post",
 					"resource": "crawl",
-					"path":     path,
+					"path":     "/crawl",
 					"status":   statusCode,
 					"success":  statusCode >= 200 && statusCode < 300 && (partialFailure == nil || flags.allowPartialFailure),
 				}

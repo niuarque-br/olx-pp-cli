@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"olx-pp-cli/internal/client"
 	"olx-pp-cli/internal/config"
+	"olx-pp-cli/internal/backend"
 )
 
 type rootFlags struct {
@@ -291,4 +292,13 @@ func (f *rootFlags) printTable(w *cobra.Command, headers []string, rows [][]stri
 		fmt.Fprintln(tw, line)
 	}
 	return tw.Flush()
+}
+
+// loadBackend loads the config and returns the configured scraping backend.
+func (f *rootFlags) loadBackend() backend.Type {
+	cfg, err := config.Load(f.configPath)
+	if err != nil {
+		return backend.Crawl4AI
+	}
+	return cfg.Backend
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
+	"olx-pp-cli/internal/backend"
 )
 
 type Config struct {
@@ -17,6 +18,7 @@ type Config struct {
 	AuthHeaderVal string            `toml:"auth_header"`
 	Headers       map[string]string `toml:"headers,omitempty"`
 	AuthSource    string            `toml:"-"`
+	Backend       backend.Type      `toml:"backend"`
 	Path          string            `toml:"-"`
 	envOverrides  map[string]bool   `toml:"-"`
 	fileConfig    *Config           `toml:"-"`
@@ -24,7 +26,8 @@ type Config struct {
 
 func Load(configPath string) (*Config, error) {
 	cfg := &Config{
-		BaseURL: "https://b279i8mvg0nr9p9cjp1exd1d.152.67.46.88.sslip.io",
+		BaseURL: "https://crawl4ai:8000",
+		Backend: backend.Crawl4AI,
 	}
 
 	// Resolve config path
@@ -63,8 +66,21 @@ func Load(configPath string) (*Config, error) {
 	}
 
 	// Base URL override (used by printing-press verify to point at mock/test servers)
+	// Set CRAWL4AI_URL or OLX_BASE_URL to configure the Crawl4AI backend.
+	// Default: https://crawl4ai:8000 (Docker internal)
 	if v := os.Getenv("OLX_BASE_URL"); v != "" {
 		cfg.BaseURL = v
+	} else if v := os.Getenv("CRAWL4AI_URL"); v != "" {
+		cfg.BaseURL = v
+	}
+
+	// Backend override
+	// Set OLX_BACKEND=crawl4ai|firecrawl to switch scraping backend.
+	// Default: crawl4ai
+	if v := os.Getenv("OLX_BACKEND"); v != "" {
+		if bt, err := backend.ParseType(v); err == nil {
+			cfg.Backend = bt
+		}
 	}
 	return cfg, nil
 }
