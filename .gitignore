@@ -4,4 +4,4 @@ tmp/
 *.mcpb
 .DS_Store
 .env
-!.env.example
+!.env.examplebin/
