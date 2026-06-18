@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+# Wrapper CLI amigável para OLX
+# Uso: olx buscar <termo> [--categoria <cat>] [--localizacao <loc>] [flags]
+#       olx detalhes <id|url>
+#       olx categorias
+#       olx locais [<estado>]  - descobre regiões/cidades disponíveis
+
+set -euo pipefail
+
+OLX_CLI="$(dirname "$(readlink -f "$0")")/olx-pp-cli"
+EXTRACT_SCRIPT="/opt/data/olx-pp-cli/scripts/extract_olx_data.py"
+
+export PATH="$HOME/.local/go/bin:$HOME/.local/bin:$PATH"
+
+cmd="${1:-help}"
+shift 2>/dev/null || true
+
+case "$cmd" in
+  buscar|busca|search|b)
+    if [ $# -eq 0 ]; then
+      echo "Uso: olx buscar <termo> [flags]"
+      echo ""
+      echo "Flags:"
+      echo "  --categoria <path>    Categoria (ex: informatica/notebooks, celulares)"
+      echo "  --localizacao <path>  Localização (ex: estado-sp, estado-rj/niteroi)"
+      echo "  --pagina <n>          Número da página (default: 1)"
+      echo "  --sort <tipo>         Ordenação (date, price_asc, price_desc)"
+      echo "  --min-preco <val>     Preço mínimo"
+      echo "  --max-preco <val>     Preço máximo"
+      echo ""
+      echo "Exemplos:"
+      echo "  olx buscar notebook"
+      echo "  olx buscar crossfox --categoria autos-e-pecas/carros-vans-e-utilitarios"
+      echo "  olx buscar crossfox --localizacao estado-rj/rio-de-janeiro-e-regiao/niteroi/centro"
+      echo ""
+      echo "Dica: use 'olx locais' para descobrir localizações disponíveis"
+      exit 1
+    fi
+    
+    if [[ "$1" != --* ]]; then
+      term="$1"
+      shift
+      "$OLX_CLI" crawl buscar-anuncios --q "$term" "$@" --agent 2>/dev/null | \
+        python3 "$EXTRACT_SCRIPT" busca /dev/stdin 2>/dev/null
+    else
+      "$OLX_CLI" crawl buscar-anuncios "$@" --agent 2>/dev/null | \
+        python3 "$EXTRACT_SCRIPT" busca /dev/stdin 2>/dev/null
+    fi
+    ;;
+    
+  detalhes|detail|d)
+    if [ $# -eq 0 ]; then
+      echo "Uso: olx detalhes <id_do_anuncio> ou --url <url_completa>"
+      exit 1
+    fi
+    
+    if [[ "$1" == --url ]]; then
+      url="$2"
+      "$OLX_CLI" crawl detalhes-anuncio --url "$url" --agent 2>/dev/null | \
+        python3 "$EXTRACT_SCRIPT" detalhe /dev/stdin 2>/dev/null
+    else
+      id="$1"
+      shift
+      "$OLX_CLI" crawl detalhes-anuncio --id "$id" --agent 2>/dev/null | \
+        python3 "$EXTRACT_SCRIPT" detalhe /dev/stdin 2>/dev/null
+    fi
+    ;;
+    
+  categorias|categories|cat|c)
+    "$OLX_CLI" crawl listar-categorias --agent 2>/dev/null | \
+      python3 "$EXTRACT_SCRIPT" busca /dev/stdin 2>/dev/null
+    ;;
+    
+  locais|locations|loc|l)
+    # Descobrir localizações da OLX
+    estado="${1:-}"
+    
+    if [ -z "$estado" ]; then
+      echo "📂 Estados disponíveis na OLX"
+      echo "--------------------------"
+      echo "Use: olx locais <sigla> (ex: olx locais rj)"
+      echo ""
+      echo "  rj  - Rio de Janeiro          mg  - Minas Gerais"
+      echo "  sp  - São Paulo               es  - Espírito Santo"
+      echo "  pr  - Paraná                  sc  - Santa Catarina"
+      echo "  rs  - Rio Grande do Sul       go  - Goiás"
+      echo "  df  - Distrito Federal        mt  - Mato Grosso"
+      echo "  ms  - Mato Grosso do Sul      ba  - Bahia"
+      echo "  pe  - Pernambuco              ce  - Ceará"
+      echo "  rn  - Rio Grande do Norte     pb  - Paraíba"
+      echo "  ma  - Maranhão                pi  - Piauí"
+      echo "  al  - Alagoas                 se  - Sergipe"
+      echo "  pa  - Pará                    am  - Amazonas"
+      echo "  ro  - Rondônia                ac  - Acre"
+      echo "  ap  - Amapá                   rr  - Roraima"
+      echo "  to  - Tocantins"
+      echo ""
+      echo "Dica: para descobrir a hierarquia completa, use:"
+      echo "  olx locais rj"
+      exit 0
+    fi
+    
+    estado_lower=$(echo "$estado" | tr '[:upper:]' '[:lower:]')
+    echo "🔍 Localizações disponíveis no estado $estado_lower"
+    echo ""
+    
+    # Mapeamento de estados para suas principais regiões/cidades
+    case "$estado_lower" in
+      rj)
+        echo "📍 ESTADO DO RIO DE JANEIRO (estado-rj)"
+        echo ""
+        echo "REGIÕES (use antes da cidade quando necessário):"
+        echo "  rio-de-janeiro-e-regiao          - Rio de Janeiro e Região Metropolitana"
+        echo "  serra-angra-dos-reis-e-regiao     - Região Serrana e Costa Verde"
+        echo "  norte-fluminense                  - Norte Fluminense"
+        echo "  regiao-dos-lagos                  - Região dos Lagos"
+        echo ""
+        echo "CIDADE DIRETAS (slug = nome simplificado):"
+        echo "  estado-rj/niteroi                 - Niterói"
+        echo "  estado-rj/rio-de-janeiro          - Rio de Janeiro"
+        echo "  estado-rj/petropolis              - Petrópolis"
+        echo "  estado-rj/campos-dos-goytacazes   - Campos dos Goytacazes"
+        echo "  estado-rj/nova-iguacu             - Nova Iguaçu"
+        echo "  estado-rj/duque-de-caxias         - Duque de Caxias"
+        echo "  estado-rj/sao-goncalo             - São Gonçalo"
+        echo "  estado-rj/nova-friburgo           - Nova Friburgo"
+        echo "  estado-rj/teresopolis             - Teresópolis"
+        echo "  estado-rj/mage                    - Magé"
+        echo "  estado-rj/itaborai                - Itaboraí"
+        echo "  estado-rj/maricá                  - Maricá"
+        echo "  estado-rj/angra-dos-reis          - Angra dos Reis"
+        echo "  estado-rj/vassouras               - Vassouras"
+        echo "  estado-rj/resende                 - Resende"
+        echo "  estado-rj/volta-redonda           - Volta Redonda"
+        echo "  estado-rj/barra-mansa             - Barra Mansa"
+        echo ""
+        echo "COM REGIÃO + CIDADE + BAIRRO:"
+        echo "  estado-rj/rio-de-janeiro-e-regiao/niteroi - Niterói (região metropolitana)"
+        echo "  estado-rj/rio-de-janeiro-e-regiao/niteroi/centro - Centro de Niterói"
+        echo "  estado-rj/serra-angra-dos-reis-e-regiao/petropolis - Petrópolis (região serrana)"
+        echo "  estado-rj/serra-angra-dos-reis-e-regiao/petropolis/centro - Centro de Petrópolis"
+        ;;
+      sp)
+        echo "📍 ESTADO DE SÃO PAULO (estado-sp)"
+        echo ""
+        echo "CIDADES (slug = nome simplificado):"
+        echo "  estado-sp/sao-paulo               - São Paulo (capital)"
+        echo "  estado-sp/campinas                - Campinas"
+        echo "  estado-sp/santos                  - Santos"
+        echo "  estado-sp/sao-jose-dos-campos     - São José dos Campos"
+        echo "  estado-sp/ribeirao-preto          - Ribeirão Preto"
+        echo "  estado-sp/sorocaba                - Sorocaba"
+        echo "  estado-sp/sao-bernardo-do-campo   - São Bernardo do Campo"
+        echo "  estado-sp/santo-andre             - Santo André"
+        echo "  estado-sp/osasco                  - Osasco"
+        echo "  estado-sp/guarulhos               - Guarulhos"
+        ;;
+      mg)
+        echo "📍 MINAS GERAIS (estado-mg)"
+        echo "CIDADES: estado-mg/belo-horizonte, estado-mg/uberlandia, estado-mg/contagem, ..."
+        ;;
+      *)
+        echo "📍 estado-${estado_lower}"
+        echo ""
+        echo "Cidades usam o nome simplificado (sem acentos, hífens no lugar de espaços):"
+        echo "  estado-${estado_lower}/<cidade>"
+        echo ""
+        echo "Exemplos para SP: estado-sp/sao-paulo, estado-sp/campinas"
+        echo "Exemplos para MG: estado-mg/belo-horizonte, estado-mg/uberlandia"
+        echo ""
+        echo "Dica: o slug da cidade é o nome em minúsculo, sem acentos,"
+        echo "com espaços substituídos por hífens."
+        echo "Ex: 'Belo Horizonte' → belo-horizonte, 'São Paulo' → sao-paulo"
+        ;;
+    esac
+    ;;
+    
+  help|--help|-h)
+    echo "OLX CLI - Busca e consulta anúncios da OLX Brasil"
+    echo ""
+    echo "Comandos:"
+    echo "  olx buscar <termo> [flags]    Buscar anúncios"
+    echo "  olx detalhes <id> [flags]     Detalhes de um anúncio"
+    echo "  olx categorias                Listar categorias"
+    echo "  olx locais [<sigla>]          Descobrir localizações"
+    echo "  olx help                      Mostrar esta ajuda"
+    echo ""
+    echo "Flags de busca:"
+    echo "  --categoria <path>    Categoria (ex: informatica/notebooks, celulares)"
+    echo "  --localizacao <path>  Localização (ex: estado-rj, estado-sp, estado-rj/rio-de-janeiro-e-regiao/niteroi)"
+    echo "  --pagina <n>          Número da página (default: 1)"
+    echo "  --sort <tipo>         Ordenação (date, price_asc, price_desc)"
+    echo "  --min-preco <val>     Preço mínimo"
+    echo "  --max-preco <val>     Preço máximo"
+    echo ""
+    echo "Localizações (formato: estado-<sigla>/<regiao>/<cidade>/<bairro>)"
+    echo "  Ex: estado-rj, estado-sp, estado-rj/niteroi, estado-rj/rio-de-janeiro-e-regiao/niteroi/centro"
+    echo ""
+    echo "Categorias comuns:"
+    echo "  autos-e-pecas/carros-vans-e-utilitarios  - Carros"
+    echo "  celulares                                 - Celulares (eletronicos-e-celulares)"
+    echo "  informatica/notebooks                     - Notebooks"
+    echo "  imoveis/venda                              - Imóveis venda"
+    echo "  imoveis/aluguel                            - Imóveis aluguel"
+    ;;
+    
+  *)
+    echo "Comando desconhecido: $cmd"
+    echo "Use: olx help"
+    exit 1
+    ;;
+esac

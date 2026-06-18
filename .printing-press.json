@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-06-18T16:51:17.150960388Z",
+  "printing_press_version": "4.24.0",
+  "api_name": "olx",
+  "display_name": "Olx Brasil De",
+  "cli_name": "olx-pp-cli",
+  "creator": {
+    "name": "Niuarque B. Rosa"
+  },
+  "printer_name": "Niuarque B. Rosa",
+  "spec_path": "spec.yaml",
+  "spec_format": "openapi3",
+  "spec_checksum": "sha256:9ea7cae4d0a2062477bf764766a5682c43a74a52c933fc8af5985b687b7c9b92",
+  "run_id": "20260618-165117",
+  "description": "CLI para buscar e consultar anúncios da OLX Brasil.",
+  "mcp_binary": "olx-pp-mcp",
+  "mcp_tool_count": 3,
+  "mcp_public_tool_count": 3,
+  "mcp_ready": "full",
+  "api_version": "1.0.0",
+  "auth_type": "none"
+}

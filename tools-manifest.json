@@ -1,0 +1,133 @@
+{
+  "api_name": "olx",
+  "base_url": "https://b279i8mvg0nr9p9cjp1exd1d.152.67.46.88.sslip.io",
+  "description": "CLI para buscar e consultar anúncios da OLX Brasil.\nUtiliza o Crawl4AI como backend para contornar Cloudflare,\nextraindo dados estruturados do HTML renderizado (Next.js SSR).",
+  "mcp_ready": "full",
+  "http_transport": "standard",
+  "auth": {
+    "type": "none"
+  },
+  "required_headers": [],
+  "tools": [
+    {
+      "name": "crawl_buscar-anuncios",
+      "description": "Busca anúncios na OLX com filtros. Constrói a URL da OLX a partir dos parâmetros: - Com categoria: /\u003ccategoria-path\u003e?q=\u003ctermo\u003e\u0026o=\u003cpagina\u003e\u0026ps=\u003csort\u003e - Sem categoria: /brasil?q=\u003ctermo\u003e\u0026o=\u003cpagina\u003e\u0026ps=\u003csort\u003e - Com localização: /\u003clocalizacao\u003e/\u003ccategoria-path\u003e?q=\u003ctermo\u003e - Com preço: adiciona \u0026minPrice=\u003cvalor\u003e\u0026maxPrice=\u003cvalor\u003e. Required: urls. Optional: q, categoria, pagina (default: 1) (plus 5 more). Returns the new CrawlBuscarAnunciosResponse.",
+      "method": "POST",
+      "path": "/crawl",
+      "no_auth": true,
+      "params": [
+        {
+          "name": "q",
+          "type": "string",
+          "location": "query",
+          "description": "Termo de busca"
+        },
+        {
+          "name": "categoria",
+          "type": "string",
+          "location": "query",
+          "description": "Caminho amigável da categoria (ex: informatica/notebooks, celulares, imoveis/venda, autos-e-pecas/carros-vans-e-utilitarios). Use '' (vazio) para todas as categorias."
+        },
+        {
+          "name": "pagina",
+          "type": "int",
+          "location": "query",
+          "description": "Número da página"
+        },
+        {
+          "name": "sort",
+          "type": "string",
+          "location": "query",
+          "description": "Ordenação: (vazio)=relevância, date=mais recentes, price_asc=menor preço, price_desc=maior preço"
+        },
+        {
+          "name": "minPreco",
+          "type": "float",
+          "location": "query",
+          "description": "Preço mínimo"
+        },
+        {
+          "name": "maxPreco",
+          "type": "float",
+          "location": "query",
+          "description": "Preço máximo"
+        },
+        {
+          "name": "localizacao",
+          "type": "string",
+          "location": "query",
+          "description": "Slug da localização. Ex: estado-sp, rio-de-janeiro-e-regiao, distrito-federal, grande-goiania-e-anapolis, minas-gerais"
+        },
+        {
+          "name": "priority",
+          "type": "int",
+          "location": "body",
+          "description": "Priority"
+        },
+        {
+          "name": "urls",
+          "type": "string_csv_array",
+          "location": "body",
+          "description": "URL da OLX para buscar (construída pelo CLI a partir dos parâmetros)",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "crawl_detalhes-anuncio",
+      "description": "Obtém detalhes completos de um anúncio da OLX. Extrai dados do Schema.org JSON-LD e do markdown renderizado. Required: urls. Optional: id, url, priority (default: 10). Returns the new CrawlDetalhesAnuncioResponse.",
+      "method": "POST",
+      "path": "/crawl/detalhes",
+      "no_auth": true,
+      "params": [
+        {
+          "name": "id",
+          "type": "int",
+          "location": "query",
+          "description": "ID do anúncio (listId) - alternativamente, passe a URL completa"
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "location": "query",
+          "description": "URL completa do anúncio. Se não informada, o CLI tenta construir a partir do ID (pode não funcionar sem a região/categoria)"
+        },
+        {
+          "name": "priority",
+          "type": "int",
+          "location": "body",
+          "description": "Priority"
+        },
+        {
+          "name": "urls",
+          "type": "string_csv_array",
+          "location": "body",
+          "description": "URL do anúncio individual na OLX",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "crawl_listar-categorias",
+      "description": "Lista todas as categorias disponíveis na OLX. Extrai do __NEXT_DATA__ da página de busca. Required: urls. Optional: priority (default: 10). Returns the new CrawlListarCategoriasResponse.",
+      "method": "POST",
+      "path": "/crawl/categorias",
+      "no_auth": true,
+      "params": [
+        {
+          "name": "priority",
+          "type": "int",
+          "location": "body",
+          "description": "Priority"
+        },
+        {
+          "name": "urls",
+          "type": "string_csv_array",
+          "location": "body",
+          "description": "URL da OLX para extrair categorias",
+          "required": true
+        }
+      ]
+    }
+  ]
+}
