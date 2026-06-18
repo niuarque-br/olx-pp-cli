@@ -3,3 +3,5 @@ tmp/
 *.test
 *.mcpb
 .DS_Store
+.env
+!.env.example

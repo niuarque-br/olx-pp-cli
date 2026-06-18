@@ -11,7 +11,7 @@ info:
   x-pp-repo: "https://github.com/niuarque-br/olx-pp-cli"
 
 servers:
-  - url: https://b279i8mvg0nr9p9cjp1exd1d.152.67.46.88.sslip.io
+  - url: https://crawl4ai:8000
     description: Crawl4AI backend (acessa OLX via browser headless)
 
 paths:

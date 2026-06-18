@@ -1,6 +1,6 @@
 {
   "api_name": "olx",
-  "base_url": "https://b279i8mvg0nr9p9cjp1exd1d.152.67.46.88.sslip.io",
+  "base_url": "https://crawl4ai:8000",
   "description": "CLI para buscar e consultar anúncios da OLX Brasil.\nUtiliza o Crawl4AI como backend para contornar Cloudflare,\nextraindo dados estruturados do HTML renderizado (Next.js SSR).",
   "mcp_ready": "full",
   "http_transport": "standard",
