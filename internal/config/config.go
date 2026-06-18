@@ -74,6 +74,18 @@ func Load(configPath string) (*Config, error) {
 		cfg.BaseURL = v
 	}
 
+	// Auth token override via CRAWL4AI_API_TOKEN env var
+	// Set CRAWL4AI_API_TOKEN to authenticate with the Crawl4AI backend.
+	// When set, wraps it as "Bearer <token>" unless auth_header is already configured.
+	if cfg.AuthHeaderVal == "" {
+		if v := os.Getenv("CRAWL4AI_API_TOKEN"); v != "" {
+			cfg.AuthHeaderVal = "Bearer " + v
+			if cfg.AuthSource == "" {
+				cfg.AuthSource = "env"
+			}
+		}
+	}
+
 	// Backend override
 	// Set OLX_BACKEND=crawl4ai|firecrawl to switch scraping backend.
 	// Default: crawl4ai
