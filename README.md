@@ -1,208 +1,266 @@
-# Olx CLI
+# OLX CLI
 
-CLI para buscar e consultar anúncios da OLX Brasil.
-Utiliza o Crawl4AI como backend para contornar Cloudflare,
-extraindo dados estruturados do HTML renderizado (Next.js SSR).
+CLI para buscar e consultar anúncios da **OLX Brasil**. Suporta dois backends de scraping:
 
-## Install
+- **🦎 Crawl4AI** (default) — via browser headless, contorna Cloudflare
+- **🔥 Firecrawl** — alternativa, configurável via `OLX_BACKEND`
 
-The recommended path installs both the `olx-pp-cli` binary and the `pp-olx` agent skill (Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, and other agents supported by the upstream [`skills`](https://github.com/vercel-labs/skills) CLI) in one shot:
+Extrai dados estruturados do HTML renderizado (Next.js SSR / Schema.org JSON-LD).
+
+## ⚡ Quick Start
+
+```bash
+# 1. Configure o backend
+cp .env.example .env
+# Edite .env com sua URL do Crawl4AI ou Firecrawl
+
+# 2. Busque anúncios
+olx-pp-cli crawl buscar-anuncios --q "notebook" --categoria "informatica/notebooks" --localizacao "estado-sp" --agent
+
+# 3. Ou use o wrapper amigável
+olx buscar notebook --categoria "informatica/notebooks"
+```
+
+## 🔧 Backends de Scraping
+
+O CLI suporta dois motores de scraping, selecionáveis via variável de ambiente:
+
+### 🦎 Crawl4AI (default)
+
+```env
+OLX_BACKEND=crawl4ai
+OLX_BASE_URL=https://seu-crawl4ai:8000
+```
+
+**Endpoint:** `POST /crawl`
+**Body:**
+```json
+{"urls": ["https://www.olx.com.br/..."], "priority": 10}
+```
+**Resposta:** Retorna HTML + Markdown com `__NEXT_DATA__` embedado.
+
+Requer [Crawl4AI](https://github.com/unclecode/crawl4ai) rodando (Docker, Coolify, etc). É o backend padrão e o mais testado.
+
+### 🔥 Firecrawl
+
+```env
+OLX_BACKEND=firecrawl
+OLX_BASE_URL=http://localhost:3002
+```
+
+**Endpoint:** `POST /v1/scrape`
+**Body:**
+```json
+{"url": "https://www.olx.com.br/...", "formats": ["markdown", "html"]}
+```
+**Resposta:** Normalizada automaticamente para o mesmo formato do Crawl4AI.
+
+Requer [Firecrawl](https://github.com/nickli/Firecrawl) rodando. A resposta é convertida internamente para o formato Crawl4AI, então toda a pipeline de extração funciona sem alterações.
+
+### Alternativa: `CRAWL4AI_URL`
+
+A variável `CRAWL4AI_URL` funciona como fallback para `OLX_BASE_URL`:
+
+```env
+CRAWL4AI_URL=https://meu-crawler:8000
+```
+
+## 📦 Instalação
+
+### Via Printing Press Library (recomendado)
 
 ```bash
 npx -y @mvanhorn/printing-press-library install olx
 ```
 
-For CLI only (no skill):
+### Build manual
 
 ```bash
-npx -y @mvanhorn/printing-press-library install olx --cli-only
+go build -o build/stage/bin/olx-pp-cli ./cmd/olx-pp-cli/
+go build -o build/stage/bin/olx-pp-mcp  ./cmd/olx-pp-mcp/
 ```
 
-For skill only — installs the skill into the same agents as the default command above, but skips the CLI binary (use this to update or reinstall just the skill):
+### Wrapper amigável (`olx`)
+
+O repositório inclui um wrapper Bash que auto-carrega o `.env`:
 
 ```bash
-npx -y @mvanhorn/printing-press-library install olx --skill-only
+cp .env.example .env
+# Edite as URLs
+./olx buscar notebook
 ```
 
-To constrain the skill install to one or more specific agents (repeatable — agent names match the [`skills`](https://github.com/vercel-labs/skills) CLI):
+## 🚀 Comandos
+
+### Buscar anúncios
 
 ```bash
-npx -y @mvanhorn/printing-press-library install olx --agent claude-code
-npx -y @mvanhorn/printing-press-library install olx --agent claude-code --agent codex
+olx-pp-cli crawl buscar-anuncios --q "<termo>" [flags]
+# ou
+olx buscar "<termo>" [flags]
 ```
 
-### Without Node
+**Flags:**
+| Flag | Descrição | Exemplo |
+|------|-----------|---------|
+| `--q` | Termo de busca | `"notebook"`, `"crossfox 2016"` |
+| `--categoria` | Caminho da categoria | `informatica/notebooks`, `celulares`, `autos-e-pecas/carros-vans-e-utilitarios` |
+| `--localizacao` | Path completo de localização | `estado-sp`, `estado-rj/niteroi`, `estado-rj/rio-de-janeiro-e-regiao/niteroi/centro` |
+| `--pagina` | Número da página (default: 1) | `2` |
+| `--sort` | Ordenação | `date`, `price_asc`, `price_desc` |
+| `--min-preco` | Preço mínimo | `500` |
+| `--max-preco` | Preço máximo | `5000` |
 
-The generated install path is category-agnostic until this CLI is published. If `npx` is not available before publish, install Node or use the category-specific Go fallback from the public-library entry after publish.
-
-### Pre-built binary
-
-Download a pre-built binary for your platform from the [latest release](https://github.com/mvanhorn/printing-press-library/releases/tag/olx-current). On macOS, clear the Gatekeeper quarantine: `xattr -d com.apple.quarantine <binary>`. On Unix, mark it executable: `chmod +x <binary>`.
-
-<!-- pp-hermes-install-anchor -->
-## Install for Hermes
-
-Install the CLI binary first. The installer writes binaries to a per-user managed bin directory by default: `$HOME/.local/bin` on macOS/Linux and `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows.
+**Exemplos:**
 
 ```bash
-npx -y @mvanhorn/printing-press-library install olx --cli-only
+# Busca simples
+olx buscar notebook
+
+# Com categoria e localização
+olx buscar iphone --categoria "celulares" --localizacao "estado-sp"
+
+# CrossFox 2016 em Niterói
+olx buscar "crossfox 2016" --categoria "autos-e-pecas/carros-vans-e-utilitarios" --localizacao "estado-rj/rio-de-janeiro-e-regiao/niteroi"
+
+# Com filtro de preço e ordenação
+olx buscar geladeira --min-preco 500 --max-preco 2000 --sort price_asc
 ```
 
-Then install the focused Hermes skill.
-
-From the Hermes CLI:
+### Detalhes de um anúncio
 
 ```bash
-hermes skills install mvanhorn/printing-press-library/cli-skills/pp-olx --force
+olx-pp-cli crawl detalhes-anuncio --id <listId>
+# ou
+olx detalhes <listId>
 ```
 
-Inside a Hermes chat session:
+### Listar categorias
 
 ```bash
-/skills install mvanhorn/printing-press-library/cli-skills/pp-olx --force
+olx-pp-cli crawl listar-categorias
+# ou
+olx categorias
 ```
 
-Restart the Hermes session or gateway if the newly installed skill is not visible immediately.
-
-## Install for OpenClaw
-Install both the CLI binary and the focused OpenClaw skill. The installer defaults binaries to a per-user bin directory (`$HOME/.local/bin` on macOS/Linux, `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows):
+### Descobrir localizações
 
 ```bash
-npx -y @mvanhorn/printing-press-library install olx --agent openclaw
+olx locais           # Lista estados disponíveis
+olx locais rj        # Mostra regiões e cidades do RJ
+olx locais sp        # Mostra cidades de SP
 ```
 
-Restart the OpenClaw session or gateway if the newly installed skill is not visible immediately.
+## 🗺️ Localizações (formato)
 
-## Use with Claude Desktop
+A localização segue a hierarquia da OLX:
 
-This CLI ships an [MCPB](https://github.com/modelcontextprotocol/mcpb) bundle — Claude Desktop's standard format for one-click MCP extension installs (no JSON config required).
-
-To install:
-
-1. Download the `.mcpb` for your platform from the [latest release](https://github.com/mvanhorn/printing-press-library/releases/tag/olx-current).
-2. Double-click the `.mcpb` file. Claude Desktop opens and walks you through the install.
-
-Requires Claude Desktop 1.0.0 or later. Pre-built bundles ship for macOS Apple Silicon (`darwin-arm64`) and Windows (`amd64`, `arm64`); for other platforms, use the manual config below.
-
-<details>
-<summary>Manual JSON config (advanced)</summary>
-
-If you can't use the MCPB bundle (older Claude Desktop, unsupported platform), install the MCP binary and configure it manually.
-
-
-Install the MCP binary from this CLI's published public-library entry or pre-built release.
-
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "olx": {
-      "command": "olx-pp-mcp"
-    }
-  }
-}
+```
+/<categoria>/<estado>/<regiao>/<cidade>/<bairro>
 ```
 
-</details>
+O slug é o nome em **minúsculo, sem acentos, com espaços → hífens**:
 
-## Quick Start
+| Nome real | Slug |
+|-----------|------|
+| Rio de Janeiro | `rio-de-janeiro` |
+| São Paulo | `sao-paulo` |
+| Belo Horizonte | `belo-horizonte` |
+| Grande Goiânia e Anápolis | `grande-goiania-e-anapolis` |
 
-### 1. Install
+**Exemplos de path completo:**
 
-See [Install](#install) above.
+| Localização | `--localizacao` |
+|-------------|-----------------|
+| Todo o estado de SP | `estado-sp` |
+| Niterói - RJ | `estado-rj/rio-de-janeiro-e-regiao/niteroi` |
+| Centro de Niterói | `estado-rj/rio-de-janeiro-e-regiao/niteroi/centro` |
+| Petrópolis - RJ | `estado-rj/serra-angra-dos-reis-e-regiao/petropolis` |
 
-### 2. Verify Setup
+## 📋 Categorias comuns
+
+| Categoria | Path |
+|-----------|------|
+| Carros | `autos-e-pecas/carros-vans-e-utilitarios` |
+| Celulares | `celulares` |
+| Notebooks | `informatica/notebooks` |
+| Imóveis - Venda | `imoveis/venda` |
+| Imóveis - Aluguel | `imoveis/aluguel` |
+| Games | `games` |
+| TVs | `tvs-e-video` |
+
+Use `olx categorias` para listar todas.
+
+## 🔐 Configuração
+
+### Variáveis de ambiente
+
+| Variável | Obrigatório | Descrição |
+|----------|-------------|-----------|
+| `OLX_BASE_URL` | ✅ | URL do servidor de scraping |
+| `OLX_BACKEND` | ❌ | `crawl4ai` (default) ou `firecrawl` |
+| `CRAWL4AI_URL` | ❌ | Fallback para `OLX_BASE_URL` |
+
+### Arquivo `.env`
+
+O wrapper `olx` e o CLI lêem as variáveis de ambiente. Crie um `.env`:
 
 ```bash
-olx-pp-cli doctor
+cp .env.example .env
 ```
 
-This checks your configuration.
+Exemplo para Crawl4AI:
+```env
+OLX_BACKEND=crawl4ai
+OLX_BASE_URL=https://crawl4ai:8000
+```
 
-### 3. Try Your First Command
+Exemplo para Firecrawl:
+```env
+OLX_BACKEND=firecrawl
+OLX_BASE_URL=http://localhost:3002
+```
+
+### Arquivo de configuração TOML
+
+Path: `~/.config/olx-pp-cli/config.toml`
+
+```toml
+base_url = "https://crawl4ai:8000"
+backend = "crawl4ai"
+```
+
+## 🤖 MCP Server
+
+O CLI inclui um servidor MCP (Model Context Protocol) para integração com IDEs e agentes:
 
 ```bash
-olx-pp-cli crawl buscar-anuncios
+# Modo stdio (default)
+olx-pp-mcp
+
+# Modo HTTP
+olx-pp-mcp -transport http -addr :7777
 ```
 
-## Usage
+**13 tools MCP disponíveis**, incluindo:
+- `crawl_buscar-anuncios` — Buscar anúncios com filtros
+- `crawl_detalhes-anuncio` — Detalhes de um anúncio
+- `crawl_listar-categorias` — Listar categorias
+- `sql` — Consultar dados sincronizados localmente
+- `sync` — Sincronizar dados para SQLite local
 
-Run `olx-pp-cli --help` for the full command reference and flag list.
+## 🏗️ Arquitetura
 
-## Commands
-
-### crawl
-
-Manage crawl
-
-- **`olx-pp-cli crawl buscar-anuncios`** - Busca anúncios na OLX com filtros.
-
-Constrói a URL da OLX a partir dos parâmetros:
-- Com categoria: /<categoria-path>?q=<termo>&o=<pagina>&ps=<sort>
-- Sem categoria: /brasil?q=<termo>&o=<pagina>&ps=<sort>
-- Com localização: /<localizacao>/<categoria-path>?q=<termo>
-- Com preço: adiciona &minPrice=<valor>&maxPrice=<valor>
-- **`olx-pp-cli crawl detalhes-anuncio`** - Obtém detalhes completos de um anúncio da OLX.
-Extrai dados do Schema.org JSON-LD e do markdown renderizado.
-- **`olx-pp-cli crawl listar-categorias`** - Lista todas as categorias disponíveis na OLX.
-Extrai do __NEXT_DATA__ da página de busca.
-
-
-## Output Formats
-
-```bash
-# Human-readable table (default in terminal, JSON when piped)
-olx-pp-cli crawl buscar-anuncios
-
-# JSON for scripting and agents
-olx-pp-cli crawl buscar-anuncios --json
-
-# Filter to specific fields
-olx-pp-cli crawl buscar-anuncios --json --select id,name,status
-
-# Dry run — show the request without sending
-olx-pp-cli crawl buscar-anuncios --dry-run
-
-# Agent mode — JSON + compact + no prompts in one flag
-olx-pp-cli crawl buscar-anuncios --agent
+```
+olx (wrapper bash) — carrega .env + chama CLI
+  └── olx-pp-cli (Go)
+        └── backend.Scrape() — Crawl4AI ou Firecrawl
+              └── browser headless → OLX → HTML
+                    └── extract_olx_data.py (extração JSON)
 ```
 
-## Agent Usage
+O backend escolhido acessa a OLX via browser headless, contornando Cloudflare. Os dados são extraídos do `__NEXT_DATA__` (Next.js SSR) ou Schema.org JSON-LD.
 
-This CLI is designed for AI agent consumption:
+## 📄 Licença
 
-- **Non-interactive** - never prompts, every input is a flag
-- **Pipeable** - `--json` output to stdout, errors to stderr
-- **Filterable** - `--select id,name` returns only fields you need
-- **Previewable** - `--dry-run` shows the request without sending
-- **Explicit retries** - add `--idempotent` to create retries when a no-op success is acceptable
-- **Confirmable** - `--yes` for explicit confirmation of destructive actions
-- **Piped input** - write commands can accept structured input when their help lists `--stdin`
-- **Offline-friendly** - sync/search commands can use the local SQLite store when available
-- **Agent-safe by default** - no colors or formatting unless `--human-friendly` is set
-
-Exit codes: `0` success, `2` usage error, `3` not found, `5` API error, `7` rate limited, `10` config error.
-
-## Health Check
-
-```bash
-olx-pp-cli doctor
-```
-
-Verifies configuration and connectivity to the API.
-
-## Configuration
-
-Config file: `~/.config/olx-brasil-de-pp-cli/config.toml`
-
-Static request headers can be configured under `headers`; per-command header overrides take precedence.
-
-## Troubleshooting
-**Not found errors (exit code 3)**
-- Check the resource ID is correct
-- Run the `list` command to see available items
-
----
-
-Generated by [CLI Printing Press](https://github.com/mvanhorn/cli-printing-press)
+Apache-2.0 — Gerado por [CLI Printing Press](https://github.com/mvanhorn/cli-printing-press)
