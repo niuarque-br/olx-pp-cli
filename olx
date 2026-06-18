@@ -12,6 +12,14 @@ EXTRACT_SCRIPT="/opt/data/olx-pp-cli/scripts/extract_olx_data.py"
 
 export PATH="$HOME/.local/go/bin:$HOME/.local/bin:$PATH"
 
+# Auto-load .env se existir (mesmo diretório do wrapper)
+ENV_FILE="$(dirname "$(readlink -f "$0")")/.env"
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
+
 cmd="${1:-help}"
 shift 2>/dev/null || true
 
